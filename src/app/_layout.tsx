@@ -40,8 +40,31 @@ export default function RootLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="home-outline"
-              size={typeof size === "number" ? size : 24}
-              color={typeof color === "string" ? color : "#079CC3"}
+              size={size ?? 24}
+              color={typeof color === "string" ? color : "#91A4B0"}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scanner"
+        options={{
+          title: "Scanner",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="camera-outline" size={size} color={typeof color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="analisis"
+        options={{
+          title: "Analisis",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="analytics-outline"
+              size={size ?? 24}
+              color={typeof color === "string" ? color : "#91A4B0"}
             />
           ),
         }}
@@ -50,12 +73,12 @@ export default function RootLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: "Explore",
+          title: "Eksplorasi",
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name="compass-outline"
-              size={typeof size === "number" ? size : 24}
-              color={typeof color === "string" ? color : "#079CC3"}
+              size={size ?? 24}
+              color={typeof color === "string" ? color : "#91A4B0"}
             />
           ),
         }}
@@ -63,3 +86,4 @@ export default function RootLayout() {
     </Tabs>
   );
 }
+
