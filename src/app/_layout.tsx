@@ -51,7 +51,11 @@ export default function RootLayout() {
         options={{
           title: "Scanner",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="camera-outline" size={size} color={typeof color} />
+        <Ionicons
+          name="camera-outline"
+          size={size ?? 24}
+          color={typeof color === "string" ? color : "#91A4B0"}
+        />
           ),
         }}
       />

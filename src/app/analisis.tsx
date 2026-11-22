@@ -1,3 +1,4 @@
+
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
@@ -11,98 +12,150 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AquaHologram from "../components/AquaHologram";
 
+const WATER_CATEGORIES = {
+  "Air Jernih": {
+    color: "#20CFFF",
+    message:
+      "Halo! Aku AQUA. Sampel air ini teridentifikasi sebagai air jernih berdasarkan tampilan visualnya. Tetap lakukan pengujian lanjutan untuk memastikan kualitas air, ya!",
+    description:
+      "Air terlihat jernih dan memiliki sedikit partikel yang tampak secara visual.",
+    recommendation:
+      "Lakukan pemeriksaan lanjutan untuk memastikan kualitas air.",
+  },
+
+  "Air Abu-abu": {
+    color: "#CBD5E1",
+    message:
+      "Halo! Aku AQUA. Hmm, sampel air ini terlihat berwarna abu-abu. Ada kemungkinan terdapat partikel atau material yang memengaruhi tampilannya.",
+    description:
+      "Air menunjukkan warna abu-abu yang dapat berkaitan dengan material tersuspensi.",
+    recommendation:
+      "Periksa sumber air dan lakukan pengujian kualitas lebih lanjut.",
+  },
+
+  "Air Keruh": {
+    color: "#FACC15",
+    message:
+      "Halo! Aku AQUA. Sepertinya air ini cukup keruh. Tampilan ini bisa berkaitan dengan adanya partikel seperti tanah atau lumpur.",
+    description:
+      "Air terlihat keruh dan memiliki tingkat kejernihan visual yang rendah.",
+    recommendation:
+      "Hindari menentukan keamanan air hanya dari tampilannya. Lakukan pengujian lanjutan.",
+  },
+
+  "Air Coklat": {
+    color: "#D99A55",
+    message:
+      "Halo! Aku AQUA. Wah, sampel air ini terlihat kecokelatan. Kondisi ini dapat berkaitan dengan tanah, lumpur, atau material lainnya.",
+    description:
+      "Air menunjukkan warna kecokelatan yang mungkin berkaitan dengan material terlarut atau tersuspensi.",
+    recommendation:
+      "Periksa sumber air dan lakukan pengujian kualitas sebelum digunakan.",
+  },
+} as const;
+
 const WATER_RESULT = {
   category: "Air Coklat",
   confidence: 92.5,
-  description:
-    "Sampel air menunjukkan tampilan berwarna coklat. Kondisi visual ini dapat berkaitan dengan partikel tanah, lumpur, atau material lain yang tersuspensi di dalam air.",
-  recommendation:
-    "Sebaiknya lakukan pemeriksaan lanjutan untuk mengetahui penyebab perubahan warna. Jangan menentukan keamanan air hanya berdasarkan tampilan visual.",
-  color: "#D99A55",
-};
+} as const;
 
-const getAquaColor = (category: string) => {
-  switch (category) {
-    case "Air Jernih":
-      return "#20CFFF";
-    case "Air Keruh":
-      return "#FACC15";
-    case "Air Abu-abu":
-      return "#CBD5E1";
-    case "Air Coklat":
-      return "#D99A55";
-    default:
-      return "#20CFFF";
-  }
-};
+// ========================================
+// HALAMAN ANALISIS
+// ========================================
 
 export default function AnalysisScreen() {
   const [showAqua, setShowAqua] = useState(false);
+
   const { imageUri } = useLocalSearchParams<{
-    imageUri?: string;
+    imageUri?: string | string[];
   }>();
 
-  const aquaMessage =
-    `Halo! Aku AQUA, asisten HydroSense. ` +
-    `Hasil analisis visual menunjukkan kategori ${WATER_RESULT.category} ` +
-    `dengan tingkat kepercayaan model ${WATER_RESULT.confidence} persen. ` +
-    `${WATER_RESULT.description} ${WATER_RESULT.recommendation}`;
+  // Mengambil URI gambar
+  const selectedImage = Array.isArray(imageUri)
+    ? imageUri[0]
+    : imageUri;
+
+  // Mengambil data berdasarkan kategori
+  const result = WATER_CATEGORIES[WATER_RESULT.category];
+
+  const categoryColor = result.color;
+  const aquaMessage = result.message;
 
   return (
     <SafeAreaView className="flex-1 bg-[#071824]">
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: 40,
+        }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* ================================= */}
+        {/* HEADER */}
+        {/* ================================= */}
+
         <View className="mb-6 flex-row items-center justify-between">
           <View>
             <Text className="text-2xl font-extrabold text-white">
               Hasil Analisis
             </Text>
+
             <Text className="mt-1 text-sm text-slate-400">
               HydroSense Water Scanner
             </Text>
           </View>
 
-          <View className="h-11 w-11 items-center justify-center rounded-full bg-cyan-400/10">
+          <View
+            className="h-11 w-11 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: `${categoryColor}20`,
+            }}
+          >
             <Ionicons
               name="water"
               size={24}
-              color="#20CFFF"
+              color={categoryColor}
             />
           </View>
         </View>
 
-        {/* Preview sampel */}
+        {/* ================================= */}
+        {/* PREVIEW GAMBAR SAMPEL */}
+        {/* ================================= */}
+
         <View className="h-40 items-center justify-center overflow-hidden rounded-2xl bg-[#183C4D]">
-        {imageUri ? (
+          {selectedImage ? (
             <Image
-            source={{ uri: imageUri }}
-            className="h-full w-full"
-            resizeMode="cover"
+              source={{ uri: selectedImage }}
+              className="h-full w-full"
+              resizeMode="cover"
             />
           ) : (
             <>
               <Ionicons
-              name="water-outline"
-              size={70}
-              color="#B6DCE8"
+                name="water-outline"
+                size={70}
+                color="#B6DCE8"
               />
+
               <Text className="mt-2 text-xs text-slate-400">
-               Belum ada gambar sampel
+                Belum ada gambar sampel
               </Text>
             </>
           )}
         </View>
 
-        {/* Hasil model */}
+        {/* ================================= */}
+        {/* HASIL KLASIFIKASI */}
+        {/* ================================= */}
+
         <View className="mt-5 rounded-3xl border border-white/10 bg-[#102B3B] p-5">
           <View className="flex-row items-center justify-between">
             <Text className="text-sm text-slate-400">
               Kategori terdeteksi
             </Text>
+
             <Ionicons
               name="checkmark-circle"
               size={21}
@@ -111,16 +164,18 @@ export default function AnalysisScreen() {
           </View>
 
           <Text
-            style={{ color: WATER_RESULT.color }}
+            style={{ color: categoryColor }}
             className="mt-2 text-2xl font-extrabold"
           >
             {WATER_RESULT.category}
           </Text>
 
+          {/* Confidence */}
           <View className="mt-4 flex-row items-center justify-between">
             <Text className="text-sm text-slate-400">
               Confidence model
             </Text>
+
             <Text className="font-bold text-white">
               {WATER_RESULT.confidence}%
             </Text>
@@ -130,7 +185,7 @@ export default function AnalysisScreen() {
             <View
               style={{
                 width: `${WATER_RESULT.confidence}%`,
-                backgroundColor: WATER_RESULT.color,
+                backgroundColor: categoryColor,
               }}
               className="h-full rounded-full"
             />
@@ -142,24 +197,75 @@ export default function AnalysisScreen() {
           </Text>
         </View>
 
-        {/* Tombol memanggil AQUA */}
+        {/* ================================= */}
+        {/* DESKRIPSI KATEGORI */}
+        {/* ================================= */}
+
+        <View className="mt-5 rounded-2xl border border-white/10 bg-[#102B3B] p-4">
+          <View className="mb-2 flex-row items-center">
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color={categoryColor}
+            />
+
+            <Text className="ml-2 font-bold text-white">
+              Deskripsi Sampel
+            </Text>
+          </View>
+
+          <Text className="text-sm leading-6 text-slate-300">
+            {result.description}
+          </Text>
+        </View>
+
+        {/* ================================= */}
+        {/* REKOMENDASI */}
+        {/* ================================= */}
+
+        <View className="mt-4 rounded-2xl border border-white/10 bg-[#102B3B] p-4">
+          <View className="mb-2 flex-row items-center">
+            <Ionicons
+              name="bulb-outline"
+              size={20}
+              color="#FACC15"
+            />
+
+            <Text className="ml-2 font-bold text-white">
+              Rekomendasi
+            </Text>
+          </View>
+
+          <Text className="text-sm leading-6 text-slate-300">
+            {result.recommendation}
+          </Text>
+        </View>
+
+        {/* ================================= */}
+        {/* TOMBOL PANGGIL AQUA */}
+        {/* ================================= */}
+
         {!showAqua && (
           <TouchableOpacity
             onPress={() => setShowAqua(true)}
-            className="mt-6 flex-row items-center justify-center rounded-2xl bg-cyan-500 py-4"
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: categoryColor,
+            }}
+            className="mt-6 flex-row items-center justify-center rounded-2xl py-4"
           >
             <Ionicons
               name="sparkles"
               size={20}
-              color="#FFFFFF"
+              color="#071824"
             />
-            <Text className="ml-2 font-bold text-white">
+
+            <Text className="ml-2 font-bold text-[#071824]">
               Panggil AQUA Assistant
             </Text>
           </TouchableOpacity>
         )}
 
-        {/* Hologram AQUA */}
         {showAqua && (
           <View className="mt-8">
             <Text className="mb-2 text-center text-xl font-extrabold text-white">
@@ -172,12 +278,26 @@ export default function AnalysisScreen() {
 
             <AquaHologram
               message={aquaMessage}
-              accentColor={getAquaColor(WATER_RESULT.category)}
+              category={WATER_RESULT.category}
+              accentColor={categoryColor}
             />
+
+            {/* Tutup AQUA */}
+            <TouchableOpacity
+              onPress={() => setShowAqua(false)}
+              className="mt-5 items-center rounded-xl border border-white/10 py-3"
+            >
+              <Text className="text-sm font-semibold text-slate-400">
+                Tutup AQUA Assistant
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Informasi tambahan */}
+        {/* ================================= */}
+        {/* CATATAN PENTING */}
+        {/* ================================= */}
+
         <View className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
           <View className="flex-row items-center">
             <Ionicons
@@ -185,8 +305,9 @@ export default function AnalysisScreen() {
               size={20}
               color="#FBBF24"
             />
+
             <Text className="ml-2 font-bold text-amber-300">
-              Catatan penting
+              Catatan Penting
             </Text>
           </View>
 
@@ -197,6 +318,7 @@ export default function AnalysisScreen() {
             untuk diminum.
           </Text>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   Animated,
   Easing,
+  Image,
   Text,
   TouchableOpacity,
   View,
@@ -12,11 +13,43 @@ import * as Speech from "expo-speech";
 
 type AquaHologramProps = {
   message: string;
+  category: string;
   accentColor?: string;
 };
 
+const MASCOTS = {
+  "Air Jernih": require("../../assets/images/aqua-jernih.png"),
+  "Air Abu-abu": require("../../assets/images/aqua-abu-abu.png"),
+  "Air Keruh": require("../../assets/images/aqua-keruh.png"),
+  "Air Coklat": require("../../assets/images/aqua-coklat.png"),
+};
+
+async function speakAqua(message: string) {
+  const voices = await Speech.getAvailableVoicesAsync();
+
+  const indoVoices = voices.filter((voice) =>
+    voice.language?.toLowerCase().startsWith("id")
+  );
+
+  const femaleVoice = indoVoices.find((voice) =>
+    /female|woman|perempuan|wanita/i.test(
+      `${voice.name} ${voice.identifier}`
+    )
+  );
+
+  Speech.stop();
+
+  Speech.speak(message, {
+    language: "id-ID",
+    voice: femaleVoice?.identifier,
+    pitch: 1.12,
+    rate: 0.9,
+  });
+}
+
 export default function AquaHologram({
   message,
+  category,
   accentColor = "#20CFFF",
 }: AquaHologramProps) {
   const [characterY] = useState(() => new Animated.Value(90));
@@ -25,13 +58,15 @@ export default function AquaHologram({
 
   const [rippleScale] = useState(() => new Animated.Value(0.5));
   const [rippleOpacity] = useState(() => new Animated.Value(0.8));
-
   const [glow] = useState(() => new Animated.Value(0.35));
-  const [scanY] = useState(() => new Animated.Value(-75));
+  const [scanY] = useState(() => new Animated.Value(-120));
+
+  const mascot =
+    MASCOTS[category as keyof typeof MASCOTS] ??
+    MASCOTS["Air Jernih"];
 
   useEffect(() => {
-    // Animasi karakter muncul dari bawah
-    Animated.parallel([
+    const entrance = Animated.parallel([
       Animated.timing(characterY, {
         toValue: 0,
         duration: 1100,
@@ -49,17 +84,12 @@ export default function AquaHologram({
         tension: 45,
         useNativeDriver: true,
       }),
-    ]).start(({ finished }) => {
-      if (finished) {
-        Speech.speak(message, {
-          language: "id-ID",
-          pitch: 1.05,
-          rate: 0.92,
-        });
-      }
+    ]);
+
+    entrance.start(({ finished }) => {
+      if (finished) speakAqua(message);
     });
 
-    // Gelombang hologram berulang
     const rippleAnimation = Animated.loop(
       Animated.sequence([
         Animated.parallel([
@@ -89,7 +119,6 @@ export default function AquaHologram({
       ])
     );
 
-    // Cahaya hologram berdenyut
     const glowAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(glow, {
@@ -105,17 +134,16 @@ export default function AquaHologram({
       ])
     );
 
-    // Garis pemindai
     const scanAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(scanY, {
-          toValue: 75,
+          toValue: 120,
           duration: 1600,
           easing: Easing.linear,
           useNativeDriver: true,
         }),
         Animated.timing(scanY, {
-          toValue: -75,
+          toValue: -120,
           duration: 0,
           useNativeDriver: true,
         }),
@@ -127,58 +155,69 @@ export default function AquaHologram({
     scanAnimation.start();
 
     return () => {
+      entrance.stop();
       rippleAnimation.stop();
       glowAnimation.stop();
       scanAnimation.stop();
       Speech.stop();
     };
   }, [
+    message,
+    characterY,
     characterOpacity,
     characterScale,
-    characterY,
-    glow,
-    message,
-    rippleOpacity,
     rippleScale,
+    rippleOpacity,
+    glow,
     scanY,
   ]);
 
   const replayVoice = () => {
-    Speech.stop();
-
-    Speech.speak(message, {
-      language: "id-ID",
-      pitch: 1.05,
-      rate: 0.92,
-    });
+    speakAqua(message);
   };
 
   return (
     <View className="w-full items-center justify-center">
-      {/* Area hologram */}
-      <View className="h-[260px] w-full items-center justify-center overflow-hidden">
-        {/* Cahaya belakang */}
+      {/* Radar dan area maskot */}
+      <View className="h-[300px] w-full items-center justify-center overflow-hidden">
+
+        {/* Cahaya radar */}
         <Animated.View
           style={{
             position: "absolute",
-            width: 170,
-            height: 170,
-            borderRadius: 100,
+            width: 260,
+            height: 260,
+            borderRadius: 150,
             backgroundColor: accentColor,
             opacity: glow.interpolate({
               inputRange: [0, 1],
-              outputRange: [0.03, 0.15],
+              outputRange: [0.02, 0.12],
             }),
-            transform: [{ scale: 1.3 }],
           }}
         />
 
-        {/* Gelombang pertama */}
+        {/* Lingkaran radar */}
+        {[250, 210, 165].map((size, index) => (
+          <View
+            key={size}
+            style={{
+              position: "absolute",
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              borderWidth: index === 0 ? 2 : 1,
+              borderColor: accentColor,
+              opacity: 0.35 + index * 0.15,
+            }}
+          />
+        ))}
+
+        {/* Gelombang radar */}
         <Animated.View
           style={{
             position: "absolute",
-            width: 125,
-            height: 125,
+            width: 130,
+            height: 130,
             borderRadius: 100,
             borderWidth: 2,
             borderColor: accentColor,
@@ -187,31 +226,7 @@ export default function AquaHologram({
           }}
         />
 
-        {/* Gelombang kedua */}
-        <Animated.View
-          style={{
-            position: "absolute",
-            width: 125,
-            height: 125,
-            borderRadius: 100,
-            borderWidth: 1,
-            borderColor: accentColor,
-            opacity: rippleOpacity.interpolate({
-              inputRange: [0, 0.8],
-              outputRange: [0, 0.5],
-            }),
-            transform: [
-              {
-                scale: rippleScale.interpolate({
-                  inputRange: [0.5, 1.7],
-                  outputRange: [0.7, 1.9],
-                }),
-              },
-            ],
-          }}
-        />
-
-        {/* Karakter hologram */}
+        {/* Maskot asli */}
         <Animated.View
           style={{
             opacity: characterOpacity,
@@ -223,65 +238,21 @@ export default function AquaHologram({
             justifyContent: "center",
           }}
         >
-          <View
+          <Image
+            source={mascot}
+            resizeMode="contain"
             style={{
-              width: 120,
-              height: 150,
-              borderRadius: 60,
-              borderWidth: 2,
-              borderColor: accentColor,
-              backgroundColor: `${accentColor}18`,
-              alignItems: "center",
-              justifyContent: "center",
-              shadowColor: accentColor,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.9,
-              shadowRadius: 22,
-              elevation: 12,
+              width: 230,
+              height: 250,
             }}
-          >
-            <Ionicons
-              name="water"
-              size={82}
-              color={accentColor}
-            />
-
-            <View
-              style={{
-                position: "absolute",
-                bottom: 20,
-                width: 48,
-                height: 3,
-                borderRadius: 10,
-                backgroundColor: accentColor,
-              }}
-            />
-          </View>
-
-          <Text
-            style={{
-              color: accentColor,
-              fontSize: 18,
-              fontWeight: "800",
-              letterSpacing: 5,
-              marginTop: 10,
-              textShadowColor: accentColor,
-              textShadowRadius: 12,
-            }}
-          >
-            A Q U A
-          </Text>
-
-          <Text className="mt-1 text-xs tracking-[3px] text-cyan-300">
-            HOLOGRAM ASSISTANT
-          </Text>
+          />
         </Animated.View>
 
-        {/* Garis pemindai */}
+        {/* Garis pemindai radar */}
         <Animated.View
           style={{
             position: "absolute",
-            width: 145,
+            width: 250,
             height: 2,
             backgroundColor: accentColor,
             opacity: 0.65,
@@ -290,7 +261,7 @@ export default function AquaHologram({
         />
       </View>
 
-      {/* Status hologram */}
+      {/* Status AQUA */}
       <View className="mt-1 flex-row items-center">
         <View
           className="mr-2 h-2 w-2 rounded-full"
@@ -304,8 +275,11 @@ export default function AquaHologram({
         </Text>
       </View>
 
-      {/* Kotak dialog */}
-      <View className="mt-5 w-full rounded-2xl border border-cyan-400/30 bg-slate-900/90 p-4">
+      {/* Dialog AQUA */}
+      <View
+        className="mt-5 w-full rounded-2xl border bg-slate-900/90 p-4"
+        style={{ borderColor: `${accentColor}50` }}
+      >
         <View className="mb-3 flex-row items-center justify-between">
           <View className="flex-row items-center">
             <Ionicons
@@ -318,11 +292,12 @@ export default function AquaHologram({
             </Text>
           </View>
 
-          <View className="rounded-full bg-cyan-400/10 px-3 py-1">
-            <Text className="text-[10px] font-bold text-cyan-300">
-              AI RESPONSE
-            </Text>
-          </View>
+          <Text
+            style={{ color: accentColor }}
+            className="text-[10px] font-bold"
+          >
+            AI RESPONSE
+          </Text>
         </View>
 
         <Text className="text-sm leading-6 text-slate-200">
