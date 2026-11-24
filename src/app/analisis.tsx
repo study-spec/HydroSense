@@ -12,6 +12,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AquaHologram from "../components/AquaHologram";
 
+// ========================================
+// DATA KATEGORI AIR
+// ========================================
+
 const WATER_CATEGORIES = {
   "Air Jernih": {
     color: "#20CFFF",
