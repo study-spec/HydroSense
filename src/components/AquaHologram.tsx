@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
   Image,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -17,97 +18,199 @@ type AquaHologramProps = {
   accentColor?: string;
 };
 
-const MASCOTS = {
+const MASCOTS: Record<string, any> = {
   "Air Jernih": require("../../assets/images/aqua-jernih.png"),
   "Air Abu-abu": require("../../assets/images/aqua-abu-abu.png"),
   "Air Keruh": require("../../assets/images/aqua-keruh.png"),
   "Air Coklat": require("../../assets/images/aqua-coklat.png"),
 };
 
-async function speakAqua(message: string) {
-  const voices = await Speech.getAvailableVoicesAsync();
-
-  const indoVoices = voices.filter((voice) =>
-    voice.language?.toLowerCase().startsWith("id")
-  );
-
-  const femaleVoice = indoVoices.find((voice) =>
-    /female|woman|perempuan|wanita/i.test(
-      `${voice.name} ${voice.identifier}`
-    )
-  );
-
-  Speech.stop();
-
-  Speech.speak(message, {
-    language: "id-ID",
-    voice: femaleVoice?.identifier,
-    pitch: 1.12,
-    rate: 0.9,
-  });
-}
+const CATEGORY_COLORS: Record<string, string> = {
+  "Air Jernih": "#20CFFF",
+  "Air Abu-abu": "#CBD5E1",
+  "Air Keruh": "#FACC15",
+  "Air Coklat": "#D99A55",
+};
 
 export default function AquaHologram({
   message,
   category,
-  accentColor = "#20CFFF",
+  accentColor,
 }: AquaHologramProps) {
-  const [characterY] = useState(() => new Animated.Value(90));
-  const [characterOpacity] = useState(() => new Animated.Value(0));
-  const [characterScale] = useState(() => new Animated.Value(0.65));
-
-  const [rippleScale] = useState(() => new Animated.Value(0.5));
-  const [rippleOpacity] = useState(() => new Animated.Value(0.8));
-  const [glow] = useState(() => new Animated.Value(0.35));
-  const [scanY] = useState(() => new Animated.Value(-120));
+  const color = accentColor || CATEGORY_COLORS[category] || "#20CFFF";
 
   const mascot =
-    MASCOTS[category as keyof typeof MASCOTS] ??
-    MASCOTS["Air Jernih"];
+    MASCOTS[category] || MASCOTS["Air Jernih"];
+
+  // Animasi kemunculan
+  const characterY = useRef(new Animated.Value(90)).current;
+  const characterOpacity = useRef(new Animated.Value(0)).current;
+  const characterScale = useRef(new Animated.Value(0.65)).current;
+
+  // Animasi melayang
+  const floatY = useRef(new Animated.Value(0)).current;
+
+  // Animasi gerakan tubuh kanan-kiri
+  const sway = useRef(new Animated.Value(0)).current;
+
+  // Animasi kedipan mata
+  const blink = useRef(new Animated.Value(0)).current;
+
+  // Efek hologram
+  const glow = useRef(new Animated.Value(0.35)).current;
+  const rippleScale = useRef(new Animated.Value(0.5)).current;
+  const rippleOpacity = useRef(new Animated.Value(0.8)).current;
+  const scanY = useRef(new Animated.Value(-120)).current;
+
+  const speakAqua = async () => {
+    try {
+      await Speech.stop();
+
+      Speech.speak(message, {
+        language: "id-ID",
+        pitch: 1.12,
+        rate: 0.9,
+      });
+    } catch (error) {
+      console.log("AQUA speech error:", error);
+    }
+  };
 
   useEffect(() => {
-    const entrance = Animated.parallel([
+    // Reset posisi awal
+    characterY.setValue(90);
+    characterOpacity.setValue(0);
+    characterScale.setValue(0.65);
+
+    // Animasi kemunculan AQUA
+    const entranceAnimation = Animated.parallel([
       Animated.timing(characterY, {
         toValue: 0,
-        duration: 1100,
-        easing: Easing.out(Easing.back(1.3)),
+        duration: 900,
+        easing: Easing.out(Easing.back(1.2)),
         useNativeDriver: true,
       }),
+
       Animated.timing(characterOpacity, {
         toValue: 1,
-        duration: 900,
+        duration: 800,
         useNativeDriver: true,
       }),
+
       Animated.spring(characterScale, {
         toValue: 1,
-        friction: 6,
+        friction: 5,
         tension: 45,
         useNativeDriver: true,
       }),
     ]);
 
-    entrance.start(({ finished }) => {
-      if (finished) speakAqua(message);
+    entranceAnimation.start(({ finished }) => {
+      if (finished) {
+        speakAqua();
+      }
     });
 
-    const rippleAnimation = Animated.loop(
+    // Melayang naik-turun
+    const floatAnimation = Animated.loop(
       Animated.sequence([
-        Animated.parallel([
+        Animated.timing(floatY, {
+          toValue: -9,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatY, {
+          toValue: 0,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // Gerakan tubuh sedikit ke kanan dan kiri
+    const swayAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sway, {
+          toValue: 1,
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sway, {
+          toValue: -1,
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sway, {
+          toValue: 0,
+          duration: 1600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // Kedipan mata berkala
+    const blinkAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2200),
+
+        Animated.timing(blink, {
+          toValue: 1,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(blink, {
+          toValue: 0,
+          duration: 130,
+          useNativeDriver: true,
+        }),
+
+        Animated.delay(2800),
+      ])
+    );
+
+    // Cahaya hologram berdenyut
+    const glowAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, {
+          toValue: 0.9,
+          duration: 1300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow, {
+          toValue: 0.35,
+          duration: 1300,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // Lingkaran radar
+    const rippleAnimation = Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
           Animated.timing(rippleScale, {
             toValue: 1.7,
             duration: 1800,
+            easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
-          Animated.timing(rippleOpacity, {
-            toValue: 0,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
           Animated.timing(rippleScale, {
             toValue: 0.5,
             duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+
+        Animated.sequence([
+          Animated.timing(rippleOpacity, {
+            toValue: 0,
+            duration: 1800,
             useNativeDriver: true,
           }),
           Animated.timing(rippleOpacity, {
@@ -119,26 +222,12 @@ export default function AquaHologram({
       ])
     );
 
-    const glowAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, {
-          toValue: 0.9,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glow, {
-          toValue: 0.35,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
+    // Garis pemindai
     const scanAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(scanY, {
           toValue: 120,
-          duration: 1600,
+          duration: 2200,
           easing: Easing.linear,
           useNativeDriver: true,
         }),
@@ -150,177 +239,357 @@ export default function AquaHologram({
       ])
     );
 
-    rippleAnimation.start();
+    floatAnimation.start();
+    swayAnimation.start();
+    blinkAnimation.start();
     glowAnimation.start();
+    rippleAnimation.start();
     scanAnimation.start();
 
     return () => {
-      entrance.stop();
-      rippleAnimation.stop();
+      entranceAnimation.stop();
+      floatAnimation.stop();
+      swayAnimation.stop();
+      blinkAnimation.stop();
       glowAnimation.stop();
+      rippleAnimation.stop();
       scanAnimation.stop();
+
       Speech.stop();
     };
-  }, [
-    message,
-    characterY,
-    characterOpacity,
-    characterScale,
-    rippleScale,
-    rippleOpacity,
-    glow,
-    scanY,
-  ]);
+  }, [message, category]);
 
-  const replayVoice = () => {
-    speakAqua(message);
-  };
+  const rotate = sway.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ["-2deg", "0deg", "2deg"],
+  });
+
+  const blinkOpacity = blink.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
 
   return (
-    <View className="w-full items-center justify-center">
-      {/* Radar dan area maskot */}
-      <View className="h-[300px] w-full items-center justify-center overflow-hidden">
-
-        {/* Cahaya radar */}
+    <View style={styles.container}>
+      {/* AREA HOLOGRAM */}
+      <View style={styles.hologramArea}>
+        {/* Lingkaran radar luar */}
         <Animated.View
-          style={{
-            position: "absolute",
-            width: 260,
-            height: 260,
-            borderRadius: 150,
-            backgroundColor: accentColor,
-            opacity: glow.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.02, 0.12],
-            }),
-          }}
+          style={[
+            styles.ripple,
+            {
+              borderColor: color,
+              opacity: rippleOpacity,
+              transform: [{ scale: rippleScale }],
+            },
+          ]}
         />
 
-        {/* Lingkaran radar */}
-        {[250, 210, 165].map((size, index) => (
+        {/* Lingkaran radar statis */}
+        <View
+          style={[
+            styles.radar,
+            {
+              borderColor: `${color}35`,
+            },
+          ]}
+        >
           <View
-            key={size}
-            style={{
-              position: "absolute",
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderWidth: index === 0 ? 2 : 1,
-              borderColor: accentColor,
-              opacity: 0.35 + index * 0.15,
-            }}
+            style={[
+              styles.radarMiddle,
+              { borderColor: `${color}50` },
+            ]}
           />
-        ))}
 
-        {/* Gelombang radar */}
+          <View
+            style={[
+              styles.radarInner,
+              { borderColor: `${color}65` },
+            ]}
+          />
+        </View>
+
+        {/* Cahaya di belakang AQUA */}
         <Animated.View
-          style={{
-            position: "absolute",
-            width: 130,
-            height: 130,
-            borderRadius: 100,
-            borderWidth: 2,
-            borderColor: accentColor,
-            opacity: rippleOpacity,
-            transform: [{ scale: rippleScale }],
-          }}
+          style={[
+            styles.glow,
+            {
+              backgroundColor: color,
+              opacity: glow,
+            },
+          ]}
         />
 
-        {/* Maskot asli */}
+        {/* Karakter AQUA */}
         <Animated.View
-          style={{
-            opacity: characterOpacity,
-            transform: [
-              { translateY: characterY },
-              { scale: characterScale },
-            ],
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          style={[
+            styles.characterContainer,
+            {
+              opacity: characterOpacity,
+              transform: [
+                { translateY: characterY },
+                { translateY: floatY },
+                { scale: characterScale },
+                { rotate },
+              ],
+            },
+          ]}
         >
           <Image
             source={mascot}
+            style={styles.mascot}
             resizeMode="contain"
-            style={{
-              width: 230,
-              height: 250,
-            }}
+          />
+
+          {/* Kedipan visual.
+              Sesuaikan posisi jika belum tepat menutupi mata maskot. */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.blinkOverlay,
+              {
+                backgroundColor: color,
+                opacity: blinkOpacity,
+              },
+            ]}
           />
         </Animated.View>
 
-        {/* Garis pemindai radar */}
+        {/* Garis pemindai hologram */}
         <Animated.View
-          style={{
-            position: "absolute",
-            width: 250,
-            height: 2,
-            backgroundColor: accentColor,
-            opacity: 0.65,
-            transform: [{ translateY: scanY }],
-          }}
+          pointerEvents="none"
+          style={[
+            styles.scanLine,
+            {
+              backgroundColor: color,
+              shadowColor: color,
+              transform: [{ translateY: scanY }],
+            },
+          ]}
         />
       </View>
 
-      {/* Status AQUA */}
-      <View className="mt-1 flex-row items-center">
+      {/* STATUS SISTEM */}
+      <View style={styles.statusContainer}>
         <View
-          className="mr-2 h-2 w-2 rounded-full"
-          style={{ backgroundColor: accentColor }}
+          style={[
+            styles.statusDot,
+            { backgroundColor: color },
+          ]}
         />
-        <Text
-          style={{ color: accentColor }}
-          className="text-xs font-bold tracking-[2px]"
-        >
+
+        <Text style={[styles.statusText, { color }]}>
           AQUA SYSTEM ONLINE
         </Text>
       </View>
 
-      {/* Dialog AQUA */}
+      {/* KOTAK PENJELASAN */}
       <View
-        className="mt-5 w-full rounded-2xl border bg-slate-900/90 p-4"
-        style={{ borderColor: `${accentColor}50` }}
+        style={[
+          styles.messageCard,
+          {
+            borderColor: `${color}65`,
+          },
+        ]}
       >
-        <View className="mb-3 flex-row items-center justify-between">
-          <View className="flex-row items-center">
+        <View style={styles.messageHeader}>
+          <View style={styles.messageTitleContainer}>
             <Ionicons
-              name="chatbubble-ellipses"
+              name="water"
               size={18}
-              color={accentColor}
+              color={color}
             />
-            <Text className="ml-2 font-bold text-white">
-              AQUA Assistant
+
+            <Text style={[styles.messageTitle, { color }]}>
+              AQUA ANALYSIS
             </Text>
           </View>
 
-          <Text
-            style={{ color: accentColor }}
-            className="text-[10px] font-bold"
+          <TouchableOpacity
+            onPress={speakAqua}
+            activeOpacity={0.7}
+            style={[
+              styles.soundButton,
+              { backgroundColor: `${color}20` },
+            ]}
           >
-            AI RESPONSE
-          </Text>
+            <Ionicons
+              name="volume-high"
+              size={20}
+              color={color}
+            />
+          </TouchableOpacity>
         </View>
 
-        <Text className="text-sm leading-6 text-slate-200">
+        <Text style={styles.messageText}>
           {message}
         </Text>
 
-        <TouchableOpacity
-          onPress={replayVoice}
-          className="mt-4 flex-row items-center self-start rounded-full bg-cyan-400/15 px-4 py-2"
-        >
-          <Ionicons
-            name="volume-high"
-            size={17}
-            color={accentColor}
-          />
-          <Text
-            style={{ color: accentColor }}
-            className="ml-2 text-xs font-bold"
-          >
-            Dengarkan penjelasan
-          </Text>
-        </TouchableOpacity>
+        <Text style={styles.categoryText}>
+          Kategori terdeteksi: {category}
+        </Text>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: "100%",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+
+  hologramArea: {
+    width: 290,
+    height: 290,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  radar: {
+    position: "absolute",
+    width: 250,
+    height: 250,
+    borderWidth: 1,
+    borderRadius: 125,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  radarMiddle: {
+    position: "absolute",
+    width: 210,
+    height: 210,
+    borderWidth: 1,
+    borderRadius: 105,
+  },
+
+  radarInner: {
+    position: "absolute",
+    width: 165,
+    height: 165,
+    borderWidth: 1,
+    borderRadius: 83,
+  },
+
+  ripple: {
+    position: "absolute",
+    width: 145,
+    height: 145,
+    borderWidth: 2,
+    borderRadius: 73,
+  },
+
+  glow: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 100,
+    opacity: 0.3,
+  },
+
+  characterContainer: {
+    width: 230,
+    height: 250,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+
+  mascot: {
+    width: 230,
+    height: 250,
+  },
+
+  blinkOverlay: {
+    position: "absolute",
+    top: "44%",
+    left: "42%",
+    width: 38,
+    height: 7,
+    borderRadius: 10,
+    zIndex: 3,
+  },
+
+  scanLine: {
+    position: "absolute",
+    width: 230,
+    height: 2,
+    opacity: 0.65,
+    zIndex: 4,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    marginBottom: 16,
+  },
+
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+
+  statusText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 2,
+  },
+
+  messageCard: {
+    width: "100%",
+    backgroundColor: "rgba(10, 25, 45, 0.94)",
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 16,
+  },
+
+  messageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  messageTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  messageTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+  },
+
+  soundButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  messageText: {
+    color: "#E2E8F0",
+    fontSize: 13,
+    lineHeight: 21,
+  },
+
+  categoryText: {
+    color: "#94A3B8",
+    fontSize: 11,
+    marginTop: 12,
+    fontWeight: "600",
+  },
+});

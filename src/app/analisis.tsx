@@ -1,5 +1,5 @@
 
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { useState } from "react";
 import {
   Image,
@@ -54,10 +54,21 @@ const WATER_CATEGORIES = {
   },
 } as const;
 
-const WATER_RESULT = {
-  category: "Air Coklat",
-  confidence: 92.5,
-} as const;
+type WaterCategory = keyof typeof WATER_CATEGORIES;
+
+// ========================================
+// HELPER PARAMETER
+// ========================================
+
+function getParamValue(
+  value: string | string[] | undefined
+): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}
 
 // ========================================
 // HALAMAN ANALISIS
@@ -66,17 +77,64 @@ const WATER_RESULT = {
 export default function AnalysisScreen() {
   const [showAqua, setShowAqua] = useState(false);
 
-  const { imageUri } = useLocalSearchParams<{
+  // Mengambil data dari Scanner
+  const params = useLocalSearchParams<{
     imageUri?: string | string[];
+    category?: string | string[];
+    confidence?: string | string[];
   }>();
 
-  // Mengambil URI gambar
-  const selectedImage = Array.isArray(imageUri)
-    ? imageUri[0]
-    : imageUri;
+  const selectedImage = getParamValue(params.imageUri);
+  const categoryParam = getParamValue(params.category);
+  const confidenceParam = getParamValue(params.confidence);
 
-  // Mengambil data berdasarkan kategori
-  const result = WATER_CATEGORIES[WATER_RESULT.category];
+  // Validasi kategori dari API
+  const isValidCategory = Object.prototype.hasOwnProperty.call(
+    WATER_CATEGORIES,
+    categoryParam
+  );
+
+  if (!isValidCategory) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#071824] px-6">
+        <Ionicons
+          name="alert-circle-outline"
+          size={65}
+          color="#FACC15"
+        />
+
+        <Text className="mt-5 text-center text-xl font-extrabold text-white">
+          Hasil Analisis Belum Tersedia
+        </Text>
+
+        <Text className="mt-3 text-center leading-6 text-slate-400">
+          Silakan kembali ke scanner dan lakukan analisis gambar terlebih dahulu.
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => router.replace("/scanner")}
+          className="mt-7 w-full rounded-2xl bg-cyan-500 py-4"
+        >
+          <Text className="text-center font-bold text-[#071824]">
+            Kembali ke Scanner
+          </Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const category = categoryParam as WaterCategory;
+  const result = WATER_CATEGORIES[category];
+
+  // Confidence dari API sudah dalam bentuk persen
+  const parsedConfidence = Number(confidenceParam);
+
+  const confidence =
+    Number.isFinite(parsedConfidence) &&
+    parsedConfidence >= 0 &&
+    parsedConfidence <= 100
+      ? parsedConfidence
+      : null;
 
   const categoryColor = result.color;
   const aquaMessage = result.message;
@@ -91,10 +149,7 @@ export default function AnalysisScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ================================= */}
         {/* HEADER */}
-        {/* ================================= */}
-
         <View className="mb-6 flex-row items-center justify-between">
           <View>
             <Text className="text-2xl font-extrabold text-white">
@@ -120,10 +175,7 @@ export default function AnalysisScreen() {
           </View>
         </View>
 
-        {/* ================================= */}
-        {/* PREVIEW GAMBAR SAMPEL */}
-        {/* ================================= */}
-
+        {/* PREVIEW GAMBAR */}
         <View className="h-40 items-center justify-center overflow-hidden rounded-2xl bg-[#183C4D]">
           {selectedImage ? (
             <Image
@@ -146,10 +198,7 @@ export default function AnalysisScreen() {
           )}
         </View>
 
-        {/* ================================= */}
         {/* HASIL KLASIFIKASI */}
-        {/* ================================= */}
-
         <View className="mt-5 rounded-3xl border border-white/10 bg-[#102B3B] p-5">
           <View className="flex-row items-center justify-between">
             <Text className="text-sm text-slate-400">
@@ -167,24 +216,26 @@ export default function AnalysisScreen() {
             style={{ color: categoryColor }}
             className="mt-2 text-2xl font-extrabold"
           >
-            {WATER_RESULT.category}
+            {category}
           </Text>
 
-          {/* Confidence */}
+          {/* CONFIDENCE */}
           <View className="mt-4 flex-row items-center justify-between">
             <Text className="text-sm text-slate-400">
               Confidence model
             </Text>
 
             <Text className="font-bold text-white">
-              {WATER_RESULT.confidence}%
+              {confidence !== null
+                ? `${confidence.toFixed(1)}%`
+                : "Tidak tersedia"}
             </Text>
           </View>
 
           <View className="mt-2 h-2 overflow-hidden rounded-full bg-slate-700">
             <View
               style={{
-                width: `${WATER_RESULT.confidence}%`,
+                width: `${confidence ?? 0}%`,
                 backgroundColor: categoryColor,
               }}
               className="h-full rounded-full"
@@ -197,10 +248,7 @@ export default function AnalysisScreen() {
           </Text>
         </View>
 
-        {/* ================================= */}
-        {/* DESKRIPSI KATEGORI */}
-        {/* ================================= */}
-
+        {/* DESKRIPSI */}
         <View className="mt-5 rounded-2xl border border-white/10 bg-[#102B3B] p-4">
           <View className="mb-2 flex-row items-center">
             <Ionicons
@@ -219,10 +267,7 @@ export default function AnalysisScreen() {
           </Text>
         </View>
 
-        {/* ================================= */}
         {/* REKOMENDASI */}
-        {/* ================================= */}
-
         <View className="mt-4 rounded-2xl border border-white/10 bg-[#102B3B] p-4">
           <View className="mb-2 flex-row items-center">
             <Ionicons
@@ -241,10 +286,7 @@ export default function AnalysisScreen() {
           </Text>
         </View>
 
-        {/* ================================= */}
-        {/* TOMBOL PANGGIL AQUA */}
-        {/* ================================= */}
-
+        {/* PANGGIL AQUA */}
         {!showAqua && (
           <TouchableOpacity
             onPress={() => setShowAqua(true)}
@@ -266,6 +308,7 @@ export default function AnalysisScreen() {
           </TouchableOpacity>
         )}
 
+        {/* AQUA HOLOGRAM */}
         {showAqua && (
           <View className="mt-8">
             <Text className="mb-2 text-center text-xl font-extrabold text-white">
@@ -278,11 +321,10 @@ export default function AnalysisScreen() {
 
             <AquaHologram
               message={aquaMessage}
-              category={WATER_RESULT.category}
+              category={category}
               accentColor={categoryColor}
             />
 
-            {/* Tutup AQUA */}
             <TouchableOpacity
               onPress={() => setShowAqua(false)}
               className="mt-5 items-center rounded-xl border border-white/10 py-3"
@@ -294,10 +336,7 @@ export default function AnalysisScreen() {
           </View>
         )}
 
-        {/* ================================= */}
         {/* CATATAN PENTING */}
-        {/* ================================= */}
-
         <View className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
           <View className="flex-row items-center">
             <Ionicons
@@ -318,7 +357,6 @@ export default function AnalysisScreen() {
             untuk diminum.
           </Text>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

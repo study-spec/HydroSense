@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from "react";
 import {
   View,
@@ -13,6 +12,8 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
+import { analyzeWater } from "../services/waterAPI";
+
 export default function ScannerScreen() {
   const cameraRef = useRef<CameraView | null>(null);
 
@@ -24,7 +25,7 @@ export default function ScannerScreen() {
 
   // Mengambil foto menggunakan kamera
   const takePicture = async () => {
-    if (!cameraRef.current || !cameraReady) return;
+    if (!cameraRef.current || !cameraReady || loading) return;
 
     try {
       setLoading(true);
@@ -35,11 +36,12 @@ export default function ScannerScreen() {
       });
 
       if (photo?.uri) {
+        setCameraReady(false);
         setImageUri(photo.uri);
       }
     } catch (error) {
+      console.log("Camera error:", error);
       setErrorMessage("Gagal mengambil foto. Coba lagi.");
-      console.log(error);
     } finally {
       setLoading(false);
     }
@@ -47,6 +49,8 @@ export default function ScannerScreen() {
 
   // Memilih gambar dari galeri
   const pickImage = async () => {
+    if (loading) return;
+
     try {
       setErrorMessage("");
 
@@ -57,24 +61,44 @@ export default function ScannerScreen() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
+        setCameraReady(false);
         setImageUri(result.assets[0].uri);
       }
     } catch (error) {
+      console.log("Gallery error:", error);
       setErrorMessage("Gagal membuka galeri.");
-      console.log(error);
     }
   };
 
-  // Mengirim gambar ke halaman Analisis
-  const analyzeImage = () => {
-    if (!imageUri) return;
+  // Mengirim gambar ke API dan membuka halaman analisis
+  const analyzeImage = async () => {
+    if (!imageUri || loading) return;
 
-    router.push({
-      pathname: "/analisis",
-      params: {
-        imageUri: imageUri,
-      },
-    });
+    try {
+      setLoading(true);
+      setErrorMessage("");
+
+      const prediction = await analyzeWater(imageUri);
+
+      router.push({
+        pathname: "/analisis",
+        params: {
+          imageUri,
+          category: prediction.category,
+          confidence: String(prediction.confidence),
+        },
+      });
+    } catch (error) {
+      console.log("Analysis error:", error);
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menganalisis gambar."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Meminta izin kamera
@@ -120,6 +144,7 @@ export default function ScannerScreen() {
           <Text className="text-2xl font-extrabold text-white">
             Water Scanner
           </Text>
+
           <Text className="mt-1 text-sm text-slate-400">
             Ambil gambar sampel air
           </Text>
@@ -163,6 +188,19 @@ export default function ScannerScreen() {
             </Text>
           </View>
         )}
+
+        {/* Overlay ketika analisis berlangsung */}
+        {loading && imageUri && (
+          <View className="absolute inset-0 items-center justify-center bg-black/60">
+            <ActivityIndicator size="large" color="#20CFFF" />
+            <Text className="mt-4 font-bold text-white">
+              Sedang menganalisis sampel air...
+            </Text>
+            <Text className="mt-2 text-xs text-slate-300">
+              Mohon tunggu sebentar
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Petunjuk */}
@@ -185,7 +223,12 @@ export default function ScannerScreen() {
         {imageUri ? (
           <View className="flex-row gap-3">
             <TouchableOpacity
-              onPress={() => setImageUri(null)}
+              onPress={() => {
+                setCameraReady(false);
+                setImageUri(null);
+                setErrorMessage("");
+              }}
+              disabled={loading}
               className="flex-1 flex-row items-center justify-center rounded-2xl border border-white/15 py-4"
             >
               <Ionicons name="refresh" size={19} color="#FFFFFF" />
@@ -196,18 +239,26 @@ export default function ScannerScreen() {
 
             <TouchableOpacity
               onPress={analyzeImage}
+              disabled={loading}
               className="flex-1 flex-row items-center justify-center rounded-2xl bg-cyan-500 py-4"
             >
-              <Ionicons name="analytics" size={19} color="#FFFFFF" />
-              <Text className="ml-2 font-bold text-white">
-                Analisis
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="analytics" size={19} color="#FFFFFF" />
+                  <Text className="ml-2 font-bold text-white">
+                    Analisis
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         ) : (
           <View className="flex-row items-center justify-around">
             <TouchableOpacity
               onPress={pickImage}
+              disabled={loading}
               className="h-14 w-14 items-center justify-center rounded-full border border-cyan-400/40 bg-cyan-400/10"
             >
               <Ionicons name="images-outline" size={25} color="#20CFFF" />
